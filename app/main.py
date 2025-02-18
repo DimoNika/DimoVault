@@ -1,6 +1,6 @@
-from fastapi import FastAPI, HTTPException, Request, Form
+from fastapi import FastAPI, HTTPException, Request, Form, UploadFile, File
 from fastapi.templating import Jinja2Templates
-from typing import Annotated
+from typing import Annotated, Union
 
 from passlib.hash import pbkdf2_sha256
 
@@ -9,6 +9,12 @@ from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, model_validator
 
 from src.token_managment import *
+
+import os
+from uuid import uuid4
+
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)  # Создать папку, если её нет
 
 app = FastAPI()
 
@@ -24,11 +30,18 @@ dbclient = pymongo.MongoClient("mongodb://localhost:27017/")
 db = dbclient["vault_db"]
 # items_table = db["items"]
 users_table = db["users"]
+files_table = db["files"]
+
 
 # fot linux
 # templates = Jinja2Templates("/app/src/templates")
 
 templates = Jinja2Templates("src/templates")
+
+from src.bytes_to_human_readable import bytes_to_human_readable
+
+templates.env.filters['bytes_to_human_readable'] = bytes_to_human_readable
+
 
 class UserForm(BaseModel):
     siteUsername: str  # Проверка на минимальную длину 6 символов
@@ -46,8 +59,7 @@ def auth(token):
     try:
     # Декодирование токена
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_signature": True})
-                
-        if users_table.find_one({"username": payload["username"]}):
+        if users_table.find_one({"site_username": payload["siteUsername"]}):
 
             return True
         else:
@@ -82,8 +94,8 @@ async def main(request: Request):
     token = request.cookies.get("access_token")
     
     # Check if user authenticated
-    # if auth(token):
-    payload = extract(token)
+    if auth(token):
+        payload = extract(token)
     print(payload)
     return payload
 
@@ -186,16 +198,60 @@ async def login(
 
 @app.get("/vault")
 async def vault(request: Request):
-    
-    return templates.TemplateResponse("vault.html", {"request": request})
+    token = request.cookies.get("access_token")
 
-# token = create_access_token(token_data)
-#             response.set_cookie(
-#                 key="access_token",
-#                 value=token,
-#                 httponly=True,      # Доступ только через HTTP (JavaScript не может прочитать куки)
-#                 max_age=432_000,    # 5 days. Время жизни токена (в секундах)
-#                 # expires=1800,       # Альтернативный способ указания времени жизни
-#                 samesite="Strict",  # Политика SameSite (например, Strict или Lax)
-#                 secure=True         # Требовать HTTPS (для локальной разработки можно отключить)
-#             )
+    if auth(token):
+        owner = extract(token)["siteUsername"]
+        data = files_table.find({"owner": owner})
+        return templates.TemplateResponse("vault.html", {"request": request, "files": [x for x in data]})
+    else:
+        return "User not authenticated"
+
+
+@app.post("/upload")
+async def upload(request: Request, file: UploadFile = File(), tg_send: Union[str, bool] = Form(False)):
+    token = request.cookies.get("access_token")
+    print(file)
+    
+    if auth(token):
+        
+        if file.size == 0:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+        
+        # file_location = os.path.join(UPLOAD_DIR, file.filename)
+        
+        
+        system_filename = str(uuid4()) + str(file.filename)
+
+        file_location = os.path.join(UPLOAD_DIR, system_filename)
+            
+        with open(file_location, "wb") as buffer:
+            while chunk := await file.read(1024 * 1024):  # Читаем по 1MB
+                buffer.write(chunk)
+
+        file_data = {
+            "filename": file.filename,
+            "system_filename": system_filename,
+            "filepath": file_location,
+            "content_type": file.content_type,
+            "size": file.size,
+            "upload_date": datetime.now().strftime("%H:%M %d.%m.%Y"),
+            "owner": extract(token)["siteUsername"]
+        }
+
+        files_table.insert_one(file_data)
+        # print(extract(token)["siteUsername"])
+        # print(extract(token))
+
+        print(file_data)
+
+        # print(await request.form())
+        # # print(request.)
+
+        # print(file)
+        # print(tg_send)
+        return RedirectResponse(f"/vault", status_code=302)
+        
+    else: 
+        return "User not authnticated"
+    
