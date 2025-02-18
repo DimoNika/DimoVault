@@ -4,7 +4,7 @@ from typing import Annotated, Union
 
 from passlib.hash import pbkdf2_sha256
 
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import RedirectResponse, Response, FileResponse
 
 from pydantic import BaseModel, model_validator
 
@@ -12,6 +12,8 @@ from src.token_managment import *
 
 import os
 from uuid import uuid4
+
+import urllib.parse
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)  # Создать папку, если её нет
@@ -38,10 +40,14 @@ files_table = db["files"]
 
 templates = Jinja2Templates("src/templates")
 
-from src.bytes_to_human_readable import bytes_to_human_readable
+from src.custom_filters.custom_filters import time_to_human_readable, bytes_to_human_readable
 
-templates.env.filters['bytes_to_human_readable'] = bytes_to_human_readable
-
+custom_filters = {
+    "bytes_to_human_readable": bytes_to_human_readable,
+    "time_to_human_readable": time_to_human_readable
+}
+# Добавляем все фильтры в Jinja
+templates.env.filters.update(custom_filters)
 
 class UserForm(BaseModel):
     siteUsername: str  # Проверка на минимальную длину 6 символов
@@ -202,7 +208,7 @@ async def vault(request: Request):
 
     if auth(token):
         owner = extract(token)["siteUsername"]
-        data = files_table.find({"owner": owner})
+        data = files_table.find({"owner": owner}).sort("upload_date", -1)
         return templates.TemplateResponse("vault.html", {"request": request, "files": [x for x in data]})
     else:
         return "User not authenticated"
@@ -235,7 +241,8 @@ async def upload(request: Request, file: UploadFile = File(), tg_send: Union[str
             "filepath": file_location,
             "content_type": file.content_type,
             "size": file.size,
-            "upload_date": datetime.now().strftime("%H:%M %d.%m.%Y"),
+            # "upload_date": datetime.now().strftime("%H:%M %d.%m.%Y"),
+            "upload_date": datetime.now(),
             "owner": extract(token)["siteUsername"]
         }
 
@@ -255,3 +262,31 @@ async def upload(request: Request, file: UploadFile = File(), tg_send: Union[str
     else: 
         return "User not authnticated"
     
+
+@app.get("/download/{filename}")
+async def download_file(filename: str):
+    print(filename)
+    file = files_table.find_one({"filename": filename})
+    # file_path = file["filepath"]
+    if file:
+        return FileResponse(file["filepath"], media_type="application/octet-stream", filename=file["filename"])
+    return {"error": "Файл не найден"}
+
+@app.get("/view/{filename}")
+async def view_file(filename: str):
+    print(filename)
+    # filename = urllib.parse.unquote(filename)  # Декодируем %20 в пробелы
+    file = files_table.find_one({"filename": filename})
+    
+    if file:
+        encoded_filename = urllib.parse.quote(file["filename"])
+        return FileResponse(
+            file["filepath"],
+            media_type=file["content_type"],  # Укажи нужный MIME-тип
+            # headers={"Content-Disposition": f"inline; filename={file["filename"]}"}
+            headers={
+                "Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}"
+            }
+
+        )
+    return {"error": "Файл не найден"}

@@ -5,3 +5,9 @@ def bytes_to_human_readable(size_in_bytes):
         if size_in_bytes < 1024.0:
             return f"{size_in_bytes:.2f} {unit}"
         size_in_bytes /= 1024.0
+
+
+from datetime import datetime
+
+def time_to_human_readable(datetime: datetime):
+    return datetime.strftime("%H:%M %d.%m.%Y")
