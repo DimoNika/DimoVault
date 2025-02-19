@@ -10,6 +10,8 @@ from pydantic import BaseModel, model_validator
 
 from src.token_managment import *
 
+from bot.bot_utils import test_send_message
+
 import os
 from uuid import uuid4
 
@@ -87,16 +89,17 @@ def extract(token):
         return None
 
 
-@app.get("/")
-async def main(request: Request):
+# @app.get("/")
+# async def main(request: Request):
 
-    return templates.TemplateResponse("vault.html", {"request": request})
+#     return templates.TemplateResponse("vault.html", {"request": request})
 
 
 
 @app.get("/test")
 async def main(request: Request):
     # return "hello"
+    await test_send_message()
     token = request.cookies.get("access_token")
     
     # Check if user authenticated
@@ -144,7 +147,7 @@ async def sign_up(
     
     # User creation
     if not users_table.find_one({"site_username": user_data.siteUsername}):
-        users_table.insert_one({"site_username": user_data.siteUsername, "tg_username": user_data.telegramUsername, "password": pbkdf2_sha256.hash(user_data.pass1)} )
+        users_table.insert_one({"site_username": user_data.siteUsername, "tg_username": user_data.telegramUsername.lower(), "password": pbkdf2_sha256.hash(user_data.pass1)} )
     else:
         return RedirectResponse(f"/signup?error=Username already taken.", status_code=302)
     # x = users_table.find_one({"site_username": user_data.siteUsername})
@@ -205,8 +208,8 @@ async def login(
 @app.get("/vault")
 async def vault(request: Request):
     token = request.cookies.get("access_token")
-
-    if auth(token):
+    print(auth(token))
+    if auth(token):    
         owner = extract(token)["siteUsername"]
         data = files_table.find({"owner": owner}).sort("upload_date", -1)
         return templates.TemplateResponse("vault.html", {"request": request, "files": [x for x in data]})
