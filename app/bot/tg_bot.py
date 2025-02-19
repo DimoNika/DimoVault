@@ -42,12 +42,12 @@ async def send_welcome(message):
 
 
     if users_table.find_one({"tg_username": message.from_user.username.lower()}):
-        await bot.send_message(message.from_user.id, users_table.find_one({"tg_username": message.from_user.username.lower()}))
+        # await bot.send_message(message.from_user.id, users_table.find_one({"tg_username": message.from_user.username.lower()}))
 
         users_table.update_one({"tg_username": message.from_user.username.lower()}, {"$set": {"chat_id": message.from_user.id}})
         await bot.send_message(message.from_user.id, "You registered successfuly")
     else:
-        await bot.send_message(message.from_user.id, "Somithing went wrong, contact DimoNika")
+        await bot.send_message(message.from_user.id, "Your tag no web-site might be wrong. Check it and change is settings!\nIf error persists contect DimoNika.")
         
 
 # # Handle all other messages with content_type 'text' (content_types defaults to ['text'])

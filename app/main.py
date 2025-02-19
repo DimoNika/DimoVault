@@ -10,7 +10,7 @@ from pydantic import BaseModel, model_validator
 
 from src.token_managment import *
 
-from bot.bot_utils import test_send_message
+from bot.bot_utils import file_tg_send
 
 import os
 from uuid import uuid4
@@ -89,17 +89,17 @@ def extract(token):
         return None
 
 
-# @app.get("/")
-# async def main(request: Request):
+@app.get("/")
+async def main(request: Request):
 
-#     return templates.TemplateResponse("vault.html", {"request": request})
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 
 @app.get("/test")
 async def main(request: Request):
     # return "hello"
-    await test_send_message()
+    await file_tg_send()
     token = request.cookies.get("access_token")
     
     # Check if user authenticated
@@ -112,6 +112,11 @@ async def main(request: Request):
 @app.get("/signup")
 async def sign_up(request: Request):
     # if request.query_params.get("error") == None:
+    token = request.cookies.get("access_token")
+    
+    if auth(token):
+        return RedirectResponse(f"/vault", status_code=302)
+    
     error = request.query_params.get("error")
     print(error)
     return templates.TemplateResponse("sign_up.html", {"request": request, "error": error})
@@ -157,12 +162,17 @@ async def sign_up(
 
     # form_data = await request.form()
     # print(form_data)
-    return dict(user_data)
+    return RedirectResponse(f"/vault", status_code=302)
+
 
 
 @app.get("/login")
 async def login(request: Request):
     # if request.query_params.get("error") == None:
+    token = request.cookies.get("access_token")
+    
+    if auth(token):
+        return RedirectResponse(f"/vault", status_code=302)
     error = request.query_params.get("error")
     print(error)
     return templates.TemplateResponse("login.html", {"request": request, "error": error})
@@ -184,9 +194,6 @@ async def login(
         print(e)
 
     user = users_table.find_one({"site_username": user_data.siteUsername})
-    print(user_data.siteUsername)
-    print(user_data.password)
-    print(user)
 
     # return user_instance["password"]
     if user:
@@ -201,7 +208,7 @@ async def login(
                 samesite="Strict",  # Политика SameSite (например, Strict или Lax)
                 secure=True         # Требовать HTTPS (для локальной разработки можно отключить)
             )
-            return "Success"
+            return RedirectResponse(f"/vault", status_code=302)
     
     return RedirectResponse(f"/login?error=Wrong credentials.", status_code=302)
 
@@ -214,7 +221,9 @@ async def vault(request: Request):
         data = files_table.find({"owner": owner}).sort("upload_date", -1)
         return templates.TemplateResponse("vault.html", {"request": request, "files": [x for x in data]})
     else:
-        return "User not authenticated"
+        return RedirectResponse(f"/signup", status_code=302)
+
+        # return "User not authenticated"
 
 
 @app.post("/upload")
@@ -253,13 +262,13 @@ async def upload(request: Request, file: UploadFile = File(), tg_send: Union[str
         # print(extract(token)["siteUsername"])
         # print(extract(token))
 
-        print(file_data)
+        # print(file_data)
+        if tg_send != False:
+            siteUsername = extract(token)["siteUsername"]
 
-        # print(await request.form())
-        # # print(request.)
-
-        # print(file)
-        # print(tg_send)
+            if users_table.find_one({"site_username": siteUsername}).get("chat_id"):
+                await file_tg_send(siteUsername, file_location)
+            
         return RedirectResponse(f"/vault", status_code=302)
         
     else: 
@@ -293,3 +302,90 @@ async def view_file(filename: str):
 
         )
     return {"error": "Файл не найден"}
+
+
+@app.get("/settings")
+async def settings(request: Request):
+    token = request.cookies.get("access_token")
+    
+    
+    if auth(token):
+        siteUsername = extract(token)["siteUsername"]
+        print(siteUsername)
+
+        user = users_table.find_one({"site_username": siteUsername})
+
+        success = request.query_params.get("success")
+        error = request.query_params.get("error")
+
+
+        return templates.TemplateResponse("settings.html", {"request": request, "user": user, "success": success,"error": error})
+    else:
+        return RedirectResponse(f"/signup", status_code=302)
+
+@app.post("/changepass")
+async def changepass(request: Request, oldPass: str = Form(), newPass1: str = Form(), newPass2: str = Form()):
+    # return f"{oldPass}{newPass1}{newPass2}{type(newPass2)}"
+    token = request.cookies.get("access_token")
+    if auth(token):
+        site_username = extract(token)["siteUsername"]
+        user = users_table.find_one({"site_username": site_username})
+        if pbkdf2_sha256.verify(oldPass, user["password"]):
+            if newPass1 == newPass2:
+                if len(newPass1) >= 6 and len(newPass1) <= 24:
+                    # users_table.update_one({"tg_username": message.from_user.username.lower()}, {"$set": {"chat_id": message.from_user.id}})
+                    users_table.update_one({"site_username": site_username}, {"$set": {"password": pbkdf2_sha256.hash(newPass1)}})
+                    
+                    return RedirectResponse(f"/settings?success=Password changed successfuly.", status_code=302)
+                
+                else:
+                    return RedirectResponse(f"/settings?error=New password too long or too short.", status_code=302)
+               
+            else:
+                return RedirectResponse(f"/settings?error=Passwords don't match.", status_code=302)
+        else: 
+            return RedirectResponse(f"/settings?error=Wrong password.", status_code=302)
+           
+        
+    return RedirectResponse(f"/", status_code=302)
+     
+@app.post("/deletefiles")
+async def deletefiles(request: Request):
+    token = request.cookies.get("access_token")
+
+    if auth(token):
+        siteUsername = extract(token)["siteUsername"]
+        files_table.delete_many({"owner": siteUsername})
+        return RedirectResponse(f"/settings", status_code=302)
+        
+    return RedirectResponse(f"/", status_code=302)
+
+
+@app.post("/changetg")
+async def changetg(request: Request, tg_tag: str = Form()):
+    token = request.cookies.get("access_token")
+
+    if auth(token):
+        siteUsername = extract(token).get("siteUsername")
+        # siteUsername = extract(token)
+        # return siteUsername
+        # print(users_table.find_one({"site_username": siteUsername}))
+        users_table.update_one({"site_username": siteUsername}, {"$set": {"tg_username": tg_tag, "chat_id": None}})
+        return RedirectResponse(f"/settings", status_code=302)
+        
+    return RedirectResponse(f"/", status_code=302)    
+
+
+@app.get("/logout")
+async def logout(request: Request, response: Response):
+    response.set_cookie(
+        key="access_token",
+        value="",
+        httponly=True,      # Доступ только через HTTP (JavaScript не может прочитать куки)
+        max_age=1,    # 5 days. Время жизни токена (в секундах)
+        # expires=1800,       # Альтернативный способ указания времени жизни
+        samesite="Strict",  # Политика SameSite (например, Strict или Lax)
+        secure=True         # Требовать HTTPS (для локальной разработки можно отключить)
+    )
+
+    return RedirectResponse(f"/", status_code=302)    
