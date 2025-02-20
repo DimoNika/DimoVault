@@ -42,11 +42,12 @@ files_table = db["files"]
 
 templates = Jinja2Templates("src/templates")
 
-from src.custom_filters.custom_filters import time_to_human_readable, bytes_to_human_readable
+from src.custom_filters.custom_filters import time_to_human_readable, bytes_to_human_readable, content_type_to_icon
 
 custom_filters = {
     "bytes_to_human_readable": bytes_to_human_readable,
-    "time_to_human_readable": time_to_human_readable
+    "time_to_human_readable": time_to_human_readable,
+    "content_type_to_icon": content_type_to_icon
 }
 # Добавляем все фильтры в Jinja
 templates.env.filters.update(custom_filters)
@@ -235,7 +236,13 @@ async def vault(request: Request):
     if auth(token):    
         owner = extract(token)["siteUsername"]
         data = files_table.find({"owner": owner}).sort("upload_date", -1)
-        return templates.TemplateResponse("vault.html", {"request": request, "files": [x for x in data]})
+
+        # Chech if user has tg conncted
+        if users_table.find_one({"site_username": owner}).get("chat_id"):
+            is_tg_connected = True
+        else:
+            is_tg_connected = False
+        return templates.TemplateResponse("vault.html", {"request": request, "files": [x for x in data], "is_tg_connected": is_tg_connected})
     else:
         return RedirectResponse(f"/signup", status_code=302)
 
@@ -249,8 +256,8 @@ async def upload(request: Request, file: UploadFile = File(), tg_send: Union[str
     
     if auth(token):
         
-        # if file.size == 0:
-        #     raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+        if file.size == 0:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
         
         # file_location = os.path.join(UPLOAD_DIR, file.filename)
         

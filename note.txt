@@ -1,0 +1,9 @@
+nohup python tg_bot.py &
+
+ps aux | grep tg_bot.py
+
+
+nohup python run_uvicorn.py &
+
+ps aux | grep run_uvicorn.py
+
