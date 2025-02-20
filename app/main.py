@@ -27,8 +27,8 @@ import pymongo
 
 
 # another adress for developing
-dbclient = pymongo.MongoClient("mongodb://localhost:27017/")
-# dbclient = pymongo.MongoClient("mongodb://username:password@mongo:27017/")
+#dbclient = pymongo.MongoClient("mongodb://localhost:27017/")
+dbclient = pymongo.MongoClient("mongodb://username:shjshcuisai2i2i2@localhost:27017/")
 
 
 db = dbclient["vault_db"]
@@ -161,8 +161,20 @@ async def sign_up(
 
 
     # form_data = await request.form()
-    # print(form_data)
-    return RedirectResponse(f"/vault", status_code=302)
+    # print(form_data)# Создаем RedirectResponse
+    redirect_response = RedirectResponse(url="/vault", status_code=302)
+
+    token = create_access_token({"siteUsername": user_data.siteUsername})
+    # Добавляем Set-Cookie в ответ
+    redirect_response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        max_age=4_320_000,
+        samesite="Strict",
+        secure=True
+    )
+    return redirect_response
 
 
 
@@ -199,17 +211,21 @@ async def login(
     if user:
         if pbkdf2_sha256.verify(user_data.password, user["password"]):
             token = create_access_token({"siteUsername": user_data.siteUsername})
-            response.set_cookie(
+
+            # Создаем RedirectResponse
+            redirect_response = RedirectResponse(url="/vault", status_code=302)
+
+            # Добавляем Set-Cookie в ответ
+            redirect_response.set_cookie(
                 key="access_token",
                 value=token,
-                httponly=True,      # Доступ только через HTTP (JavaScript не может прочитать куки)
-                max_age=4_320_000,    # 50 days. Время жизни токена (в секундах)
-                # expires=1800,       # Альтернативный способ указания времени жизни
-                samesite="Strict",  # Политика SameSite (например, Strict или Lax)
-                secure=True         # Требовать HTTPS (для локальной разработки можно отключить)
+                httponly=True,
+                max_age=4_320_000,
+                samesite="Strict",
+                secure=True
             )
-            return RedirectResponse(f"/vault", status_code=302)
-    
+
+        return redirect_response
     return RedirectResponse(f"/login?error=Wrong credentials.", status_code=302)
 
 @app.get("/vault")
@@ -233,8 +249,8 @@ async def upload(request: Request, file: UploadFile = File(), tg_send: Union[str
     
     if auth(token):
         
-        if file.size == 0:
-            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+        # if file.size == 0:
+        #     raise HTTPException(status_code=400, detail="Uploaded file is empty.")
         
         # file_location = os.path.join(UPLOAD_DIR, file.filename)
         
@@ -370,7 +386,7 @@ async def changetg(request: Request, tg_tag: str = Form()):
         # siteUsername = extract(token)
         # return siteUsername
         # print(users_table.find_one({"site_username": siteUsername}))
-        users_table.update_one({"site_username": siteUsername}, {"$set": {"tg_username": tg_tag, "chat_id": None}})
+        users_table.update_one({"site_username": siteUsername}, {"$set": {"tg_username": tg_tag.lower(), "chat_id": None}})
         return RedirectResponse(f"/settings", status_code=302)
         
     return RedirectResponse(f"/", status_code=302)    
@@ -378,14 +394,16 @@ async def changetg(request: Request, tg_tag: str = Form()):
 
 @app.get("/logout")
 async def logout(request: Request, response: Response):
-    response.set_cookie(
+
+    redirect_response = RedirectResponse(url="/", status_code=302)
+
+    # Добавляем Set-Cookie в ответ
+    redirect_response.set_cookie(
         key="access_token",
         value="",
-        httponly=True,      # Доступ только через HTTP (JavaScript не может прочитать куки)
-        max_age=1,    # 5 days. Время жизни токена (в секундах)
-        # expires=1800,       # Альтернативный способ указания времени жизни
-        samesite="Strict",  # Политика SameSite (например, Strict или Lax)
-        secure=True         # Требовать HTTPS (для локальной разработки можно отключить)
+        httponly=True,
+        max_age=4_320_000,
+        samesite="Strict",
+        secure=True
     )
-
-    return RedirectResponse(f"/", status_code=302)    
+    return redirect_response

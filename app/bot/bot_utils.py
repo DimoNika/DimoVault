@@ -10,8 +10,9 @@ import pymongo
 
 
 # another adress for developing
-dbclient = pymongo.MongoClient("mongodb://localhost:27017/")
-# dbclient = pymongo.MongoClient("mongodb://username:password@mongo:27017/")
+# dbclient = pymongo.MongoClient("mongodb://localhost:27017/")
+dbclient = pymongo.MongoClient("mongodb://username:shjshcuisai2i2i2@localhost:27017/")
+
 
 
 db = dbclient["vault_db"]
@@ -25,6 +26,6 @@ async def file_tg_send(siteUsername, file_location):
 
     user = users_table.find_one({"site_username": siteUsername})
     
-    await bot.send_document(user["chat_id"], InputFile(f".\\{file_location}"))
+    await bot.send_document(user["chat_id"], InputFile(f"./{file_location}"))
     
     # await bot.close()
