@@ -84,9 +84,9 @@
                                 <div id="emailHelp" class="form-text">You can drag-and-drop</div>
                               </div>
 
-                            <div class="form-check my-2">
-                                <input class="form-check-input" type="checkbox" value="send" id="flexCheckChecked" name="tg_send" checked>
-                                <label class="form-check-label" for="flexCheckChecked">
+                            <div class="form-check mt-2" style="margin-bottom: 130px;">
+                                <input class="form-check-input" type="checkbox" value="send" id="tg_sendInput" name="tg_send" checked>
+                                <label class="form-check-label" for="tg_sendInput">
                                     Sent to telegram
                                 </label>
                                 <br>
@@ -95,6 +95,14 @@
                                     <div class="form-text text-danger">Your telegram is not connected. <br> Configure in <a href="/settings">settings</a>.</div>
 
                                 {% endif %}
+                            </div>
+
+                            
+                            <div id="progressBarHolder" class="invisible">
+                                <p>Uploading file... </p>
+                                <div class="progress" >
+                                    <div class="progress-bar" style="width:0%" id="progressBar"></div>
+                                </div>
                             </div>
                         </form>
                     </div>
@@ -108,4 +116,60 @@
         </div>
 
     </body>
+     <!-- JavaScript для отправки файла с прогрессом -->
+     <script>
+        document.getElementById("uploadForm").addEventListener("submit", async function(event) {
+            event.preventDefault(); // Отменяем стандартную отправку формы
+        
+            const formData = new FormData();
+            const fileInput = document.getElementById("formFile");
+            formData.append("file", fileInput.files[0]);
+
+
+            const tg_sendInput = document.getElementById("tg_sendInput");
+            formData.append("tg_send", tg_sendInput);
+
+            
+            const progressBarHolder = document.getElementById("progressBarHolder");
+
+            const progressBar = document.getElementById("progressBar");
+        
+            const xhr = new XMLHttpRequest();
+        
+            // Обработчик прогресса
+            xhr.upload.onprogress = function(event) {
+
+                progressBarHolder.classList.remove("invisible")
+
+                if (event.lengthComputable) {
+                    let percent = (event.loaded / event.total) * 100;
+                    //progressBar.style.width = percent + "%";
+                    progressBar.style.width = percent + "%"
+                    console.log(percent); // Печать процента в консоль
+                }
+            };
+        
+            // Обработчик завершения запроса
+            xhr.onload = async function() { // Сделаем функцию асинхронной
+                if (xhr.status === 200) {
+                    console.log("File uploaded successfully");
+                    location.reload(); // Перезагружаем страницу
+                } else {
+                    console.error("File upload failed");
+                    location.reload(); // Перезагружаем страницу
+                }
+            };
+        
+            // Обработчик ошибок
+            xhr.onerror = function() {
+                console.error("Request failed");
+            };
+        
+            // Отправка запроса
+            xhr.open("POST", "/upload");
+            xhr.send(formData);
+            
+        });
+        
+    </script>
 </html>

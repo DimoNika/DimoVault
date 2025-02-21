@@ -17,6 +17,9 @@ from uuid import uuid4
 
 import urllib.parse
 
+from pathlib import Path
+
+
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)  # Создать папку, если её нет
 
@@ -378,8 +381,22 @@ async def deletefiles(request: Request):
 
     if auth(token):
         siteUsername = extract(token)["siteUsername"]
+        
+        files_pathes = [x["filepath"] for x in files_table.find({"owner": siteUsername})]
+        print(files_pathes)
+        for file in files_pathes:
+            path = Path(file)
+            try:
+                path.unlink()
+                
+            except FileNotFoundError:
+                print(f"{file} not found")
+            except Exception as e:
+                print(f"Ошибка при удалении {file}: {e}")
+        
+
         files_table.delete_many({"owner": siteUsername})
-        return RedirectResponse(f"/settings", status_code=302)
+        return RedirectResponse(f"/vault", status_code=302)
         
     return RedirectResponse(f"/", status_code=302)
 
