@@ -14,7 +14,7 @@
         <h2 class="pt-5">Hello, {{ user.site_username }}</h2>
         <hr>
         <div >
-            <h3>Settings</h3>{{error}} {{success}}
+            <!-- <h3>Settings</h3>{{error}} {{success}}  -->
             <p>Change password: <button class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#passwordChangeSec"> Change password</button></p>
             {% if success %}
                 <div class="alert alert-success">
@@ -87,7 +87,7 @@
             <!-- {{ user }} -->
         </div>
         <a class="btn btn-outline-danger" href="/logout">Logout</a>
-        <a href="/vault" class="btn btn-success float-end">Return</a>
+        <a href="/vault" class="btn btn-success float-end">Home</a>
 
         <!-- <p>hello world</p> -->
     </div>
