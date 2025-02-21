@@ -293,7 +293,7 @@ async def upload(request: Request, file: UploadFile = File(), tg_send: Union[str
             siteUsername = extract(token)["siteUsername"]
 
             if users_table.find_one({"site_username": siteUsername}).get("chat_id"):
-                await file_tg_send(siteUsername, file_location)
+                await file_tg_send(siteUsername, system_filename)
             
         return RedirectResponse(f"/vault", status_code=302)
         

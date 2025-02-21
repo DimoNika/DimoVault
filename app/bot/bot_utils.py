@@ -18,14 +18,15 @@ dbclient = pymongo.MongoClient("mongodb://username:shjshcuisai2i2i2@localhost:27
 db = dbclient["vault_db"]
 # items_table = db["items"]
 users_table = db["users"]
+files_table = db["files"]
 
 
 
 # async def file_tg_send():
-async def file_tg_send(siteUsername, file_location):
+async def file_tg_send(siteUsername, system_filename):
 
     user = users_table.find_one({"site_username": siteUsername})
-    
-    await bot.send_document(user["chat_id"], InputFile(f"./{file_location}"))
+    file = files_table.find_one({"system_filename": system_filename})
+    await bot.send_document(user["chat_id"], InputFile(file["filepath"], file["filename"]))
     
     # await bot.close()
