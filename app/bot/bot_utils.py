@@ -1,17 +1,18 @@
 from telebot.async_telebot import AsyncTeleBot
-from .bot_config import TOKEN
 from telebot.types import InputFile
 
-# bot = AsyncTeleBot("7338534439:AAHDCPaKSUEc3eitG4FMgRrSnrRJEWy3E3E")
-bot = AsyncTeleBot(TOKEN)
+from dotenv import load_dotenv
+import os
+load_dotenv()
+
+print(os.getenv("TG_BOT_TOKEN"))
+bot = AsyncTeleBot(os.getenv("TG_BOT_TOKEN"))
 
 import pymongo
 
 
-
-# another adress for developing
-# dbclient = pymongo.MongoClient("mongodb://localhost:27017/")
-dbclient = pymongo.MongoClient("mongodb://username:shjshcuisai2i2i2@localhost:27017/")
+#  adress from .env
+dbclient = pymongo.MongoClient(os.getenv("DB_CONNECTION_STRING"))
 
 
 

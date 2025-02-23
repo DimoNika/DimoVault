@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta, timezone
 from jose import jwt
+import os
 
 
 
 
-SECRET_KEY = "your_secret_key"
+SECRET_KEY = f"{os.getenv("JWT_SECRET_KEY")}"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 72000  # 50 days
 

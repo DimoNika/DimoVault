@@ -29,9 +29,9 @@ import pymongo
 
 
 
-# another adress for developing
-#dbclient = pymongo.MongoClient("mongodb://localhost:27017/")
-dbclient = pymongo.MongoClient("mongodb://username:shjshcuisai2i2i2@localhost:27017/")
+#  adress from .env
+dbclient = pymongo.MongoClient(os.getenv("DB_CONNECTION_STRING"))
+
 
 
 db = dbclient["vault_db"]

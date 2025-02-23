@@ -82,6 +82,7 @@
                                 <label for="formFile" class="form-label">Choose file</label>
                                 <input class="form-control" type="file" id="formFile" name="file" required>
                                 <div id="emailHelp" class="form-text">You can drag-and-drop</div>
+                                <div class="form-text">File size limit is 100MB</div>
                               </div>
 
                             <div class="form-check mt-2" style="margin-bottom: 130px;">
@@ -89,7 +90,9 @@
                                 <label class="form-check-label" for="tg_sendInput">
                                     Sent to telegram
                                 </label>
-                                <br>
+                                
+                                <div class="form-text mt-0">Telegram size limit is 50MB</div>
+
                                 {% if not is_tg_connected %}
 
                                     <div class="form-text text-danger">Your telegram is not connected. <br> Configure in <a href="/settings">settings</a>.</div>
