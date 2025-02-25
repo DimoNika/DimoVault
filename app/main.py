@@ -24,7 +24,8 @@ from fastapi.staticfiles import StaticFiles
 
 import pymongo
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)  # Создать папку, если её нет
@@ -282,6 +283,7 @@ async def upload(request: Request, file: UploadFile = File(), tg_send: Union[str
             while chunk := await file.read(1024 * 1024):  # Читаем по 1MB
                 buffer.write(chunk)
 
+        
         file_data = {
             "filename": file.filename,
             "system_filename": system_filename,
@@ -289,7 +291,7 @@ async def upload(request: Request, file: UploadFile = File(), tg_send: Union[str
             "content_type": file.content_type,
             "size": file.size,
             # "upload_date": datetime.now().strftime("%H:%M %d.%m.%Y"),
-            "upload_date": datetime.now(),
+            "upload_date": datetime.now(timezone.utc) + timedelta(hours=2),
             "owner": extract(token)["siteUsername"]
         }
 
