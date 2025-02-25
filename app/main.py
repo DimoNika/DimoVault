@@ -33,7 +33,7 @@ app = FastAPI()
 
 # FOR DEVELOPMENT?
 # Подключаем папку со статикой (пусть будет "static")
-app.mount("/static", StaticFiles(directory="src\\static"), name="static")
+# app.mount("/static", StaticFiles(directory="src\\static"), name="static")
 # app.mount("/static", StaticFiles(directory="src\\icons"), name="static")
 
 
@@ -256,7 +256,7 @@ async def vault(request: Request):
             is_tg_connected = False
         return templates.TemplateResponse("vault.html", {"request": request, "files": [x for x in data], "is_tg_connected": is_tg_connected})
     else:
-        return RedirectResponse(f"/signup", status_code=302)
+        return RedirectResponse(f"/login", status_code=302)
 
         # return "User not authenticated"
 
