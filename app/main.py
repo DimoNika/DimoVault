@@ -299,10 +299,14 @@ async def upload(request: Request, file: UploadFile = File(), tg_send: Union[str
 
         # print(file_data)
         if tg_send != False:
-            siteUsername = extract(token)["siteUsername"]
+            # Check if file less then 50 MB
+            if file.size < 52428800:
+                siteUsername = extract(token)["siteUsername"]
 
-            if users_table.find_one({"site_username": siteUsername}).get("chat_id"):
-                await file_tg_send(siteUsername, system_filename)
+                if users_table.find_one({"site_username": siteUsername}).get("chat_id"):
+                    await file_tg_send(siteUsername, system_filename)
+            else:
+                pass
             
         return RedirectResponse(f"/vault", status_code=302)
         
