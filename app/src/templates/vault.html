@@ -22,6 +22,8 @@
                     <br>
                     <a class="btn btn-secondary m-1" href="settings">Settings</a>
                     <br>
+                    <a class="btn btn-outline-primary m-1" href="/scan">Scan QR code</a>
+                    <br>
                     <a class="btn btn-outline-danger m-1" href="/logout">Logout</a>
                     <!-- <p>{{ files }}</p> -->
 
@@ -36,7 +38,7 @@
                             <div class="row">
                                 <div class="col-2">
                                     <!-- <img src="https://cdn-icons-png.flaticon.com/512/4248/4248321.png" class="m-2 d-block" style="width: 100%; max-width: 60px;"> -->
-                                    <img src="/static/{{ file.content_type | content_type_to_icon }}" class="m-2 d-block" style="width: 100%; max-width: 60px;">
+                                    <img src="/static/images/icons/{{ file.content_type | content_type_to_icon }}" class="m-2 d-block" style="width: 100%; max-width: 60px;">
                                 </div>
                                 <div class="col-3 d-flex align-items-center" title="{{ file.filename }}">
                                     <!-- <a href="/view/{{ file.filename }}" style="text-overflow: ellipsis; white-space: nowrap; display: inline-block; max-width: 100%; overflow: hidden;">{{ file.filename }}</> -->

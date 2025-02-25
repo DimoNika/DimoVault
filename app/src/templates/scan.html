@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>QR page</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="
+    https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js
+    "></script>
+    <style>
+        /* Устанавливаем высоту страницы на 100vh */
+        html, body {
+            height: 100%;
+        }
+        /* Чтобы контент занимал доступное пространство */
+        .content {
+            flex-grow: 1;
+        }
+
+
+    </style>
+</head>
+    <body class="d-flex flex-column vh-100 container p-2">
+        
+        <!-- Хедер -->
+        <nav class="navbar navbar-expand-md bg-body-secondary">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/">DimoVault</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarText" aria-controls="navbarText" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarText">
+                    <div class="me-auto mb-2 mb-lg-0">
+                        
+                    </div>
+                    <span class="navbar-nav">
+                        <a class="btn btn-outline-dark nav-item mx-1" href="/vault">Your vault</a>
+                        <a class="btn btn-outline-primary nav-item mx-1" href="/qr">Login with QR</a>
+                        <a class="btn btn-outline-success nav-item mx-1" href="/login">Login</a>
+                        <a class="btn btn-outline-success nav-item mx-1" href="/signup">Sign up</a>
+                        
+                    </span>
+                </div>
+            </div>
+        </nav>
+
+
+
+        <div style="height: 100%;" class="d-flex flex-column flex-grow-1 justify-content-center mb-5">
+            
+            <div id="loadingMessage" class="text-center">🎥 Unable to access video stream (please make sure you have a webcam enabled)</div>
+            <div class="text-center">
+                <canvas id="canvas"  hidden="" style="max-width: 600px; width: 100%;"></canvas>
+
+                
+            </div>
+            <div id="output" hidden="" class="text-center">
+                <div id="outputMessage">No QR code detected.</div>
+                <!-- <div hidden=""><b>Data:</b> <span id="outputData"></span></div> -->
+                <div hidden=""><b>Data:</b> <span id="outputData"></span></div>
+                <div class="alert alert-success" id="successMessage" hidden>
+                    <strong>Success!</strong> QR code identified.
+                  </div>
+            </div>
+            
+        </div>
+  
+    
+    <script>
+      var video = document.createElement("video");
+      var canvasElement = document.getElementById("canvas");
+      var canvas = canvasElement.getContext("2d");
+      var loadingMessage = document.getElementById("loadingMessage");
+      var outputContainer = document.getElementById("output");
+      var outputMessage = document.getElementById("outputMessage");
+      var outputData = document.getElementById("outputData");
+      canvasElement.willReadFrequently = true;
+
+      let scanningActive = true;  // Флаг, чтобы контролировать состояние сканирования
+
+
+      function drawLine(begin, end, color) {
+        canvas.beginPath();
+        canvas.moveTo(begin.x, begin.y);
+        canvas.lineTo(end.x, end.y);
+        canvas.lineWidth = 4;
+        canvas.strokeStyle = color;
+        canvas.stroke();
+      }
+      
+      // Use facingMode: environment to attemt to get the front camera on phones
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function(stream) {
+        video.srcObject = stream;
+        video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
+        video.play();
+        if (scanningActive) {
+          requestAnimationFrame(tick); // Если сканирование остановлено, прерываем выполнение
+        }; 
+      });
+  
+      function tick() {
+
+        if (!scanningActive) return;  // Если сканирование остановлено, прерываем выполнение
+
+        loadingMessage.innerText = "⌛ Loading video..."
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          loadingMessage.hidden = true;
+          canvasElement.hidden = false;
+          outputContainer.hidden = false;
+  
+          canvasElement.height = video.videoHeight;
+          canvasElement.width = video.videoWidth;
+          canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+          var imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+          var code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "dontInvert",
+          });
+          if (code) {
+            
+            outputMessage.hidden = true;
+            outputData.parentElement.hidden = false;
+            outputData.innerText = code.data;
+            console.log(code.data);
+            
+
+            // sent this request on detecting qr code data
+            let requestOptions = {
+                method: "POST", 
+                headers: {
+                  "Content-Type": "application/json"
+                },
+               body: JSON.stringify({ "qr_data": code.data }) 
+              }
+
+            fetch("/qr-validate", requestOptions)
+            .then(response => {
+                console.log(response);
+                if (response.status == 200) {
+                    scanningActive = false; // Останавливаем сканирование после успешного считывания
+                    video.srcObject.getTracks().forEach(track => track.stop()); // Останавливаем камеру
+                    // Получаем элемент по его ID
+                    let successMessage = document.getElementById("successMessage");
+
+                    // Убираем атрибут hidden
+                    successMessage.removeAttribute("hidden");
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log(data)
+            })
+            .catch(error => {
+                console.error(error)
+            })
+
+          } else {
+            console.log("nothing")
+            outputMessage.hidden = false;
+            outputData.parentElement.hidden = true;
+          }
+        }
+        requestAnimationFrame(tick);
+      }
+    </script>
+  
+  
+  </body></html>
+</html>

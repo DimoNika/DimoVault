@@ -4,7 +4,7 @@ from typing import Annotated, Union
 
 from passlib.hash import pbkdf2_sha256
 
-from fastapi.responses import RedirectResponse, Response, FileResponse
+from fastapi.responses import RedirectResponse, Response, FileResponse, JSONResponse
 
 from pydantic import BaseModel, model_validator
 
@@ -19,14 +19,22 @@ import urllib.parse
 
 from pathlib import Path
 
+from src import qr_managment
+from fastapi.staticfiles import StaticFiles
+
+import pymongo
+
+from datetime import datetime, timezone
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)  # Создать папку, если её нет
 
 app = FastAPI()
 
-import pymongo
-
+# FOR DEVELOPMENT?
+# Подключаем папку со статикой (пусть будет "static")
+app.mount("/static", StaticFiles(directory="src\\static"), name="static")
+# app.mount("/static", StaticFiles(directory="src\\icons"), name="static")
 
 
 #  adress from .env
@@ -38,6 +46,7 @@ db = dbclient["vault_db"]
 # items_table = db["items"]
 users_table = db["users"]
 files_table = db["files"]
+qrs_table = db["qrs"]
 
 
 # fot linux
@@ -431,3 +440,91 @@ async def logout(request: Request, response: Response):
         secure=True
     )
     return redirect_response
+
+@app.get("/qr")
+async def qr(request: Request):
+    token = request.cookies.get("access_token")
+
+    if auth(token):
+        return RedirectResponse(f"/vault", status_code=302)
+
+    qr_code_name = qr_managment.generate_qr()
+
+    return templates.TemplateResponse("qr.html", {"request": request, "qr_code_name": qr_code_name})
+
+@app.get("/scan")
+async def scan(request: Request):
+    token = request.cookies.get("access_token")
+
+    if auth(token):
+
+
+        return templates.TemplateResponse("scan.html", {"request": request})
+    else:
+        return RedirectResponse(f"/", status_code=302)
+
+
+@app.post("/is-scanned")
+async def is_scanned(request: Request):
+    
+    data = await request.json()
+    qr_name = data["qr_code_name"]
+    qr_code = qrs_table.find_one({"qr_name": qr_name})
+    if qr_code["is_scanned"]:
+
+        token = create_access_token({"siteUsername": qr_code["scanned_by"]})
+        # Создаем RedirectResponse
+        redirect_response = RedirectResponse(url="/vault", status_code=302)
+
+        # Добавляем Set-Cookie в ответ
+        redirect_response.set_cookie(
+            key="access_token",
+            value=token,
+            httponly=True,
+            max_age=4_320_000,
+            samesite="Strict",
+            secure=True
+        )
+
+        return redirect_response
+        # return qrs_table.find_one({"qr_name": qr_name}).get("scanned_by")
+    else:
+        return "QR not scanned"
+
+    return data 
+
+
+
+
+
+@app.post("/qr-validate")
+async def qr_validate(request: Request):
+    token = request.cookies.get("access_token")
+    
+    
+    if auth(token):
+        data = await request.json()
+        if not data and not data["qr_data"]: raise HTTPException(status_code=400, detail="No data passed")
+
+        qr_code = qrs_table.find_one({"qr_data": data["qr_data"]})
+        # print(qr_code)
+        if not qr_code: raise HTTPException(status_code=400, detail="Invalid data passed")
+
+        now = datetime.now(timezone.utc)
+        
+        # add zone awareness 
+        qr_code_created_at = qr_code["created_at"].replace(tzinfo=timezone.utc)
+        if (now - qr_code_created_at) > timedelta(minutes=1):
+            raise HTTPException(status_code=400, detail="QR code expired")
+        
+        if qr_code["is_scanned"] == True:
+            raise HTTPException(status_code=400, detail="QR alredy used")
+        # print(extract(token).get("siteUsername"))
+        qrs_table.update_one(qr_code, {"$set": {"is_scanned": True, "scanned_by": extract(token).get("siteUsername")}})
+
+        return JSONResponse(content={"data": "QR code identified"}, status_code = 200)
+
+    else:
+
+        return RedirectResponse(f"/", status_code=302)
+    
