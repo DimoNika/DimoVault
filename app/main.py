@@ -110,17 +110,7 @@ async def main(request: Request):
 
 
 
-@app.get("/test")
-async def main(request: Request):
-    # return "hello"
-    await file_tg_send()
-    token = request.cookies.get("access_token")
-    
-    # Check if user authenticated
-    if auth(token):
-        payload = extract(token)
-    print(payload)
-    return payload
+
 
 
 @app.get("/signup")
@@ -263,7 +253,7 @@ async def vault(request: Request):
 
 
 @app.post("/upload")
-async def upload(request: Request, file: UploadFile = File(), tg_send: Union[str, bool] = Form(False)):
+async def upload(request: Request, file: UploadFile = File(), tg_send: bool = Form(False)):
     token = request.cookies.get("access_token")
     print(file)
     
