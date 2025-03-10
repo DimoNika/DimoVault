@@ -42,7 +42,7 @@
                                 </div>
                                 <div class="col-3 d-flex align-items-center" title="{{ file.filename }}">
                                     <!-- <a href="/view/{{ file.filename }}" style="text-overflow: ellipsis; white-space: nowrap; display: inline-block; max-width: 100%; overflow: hidden;">{{ file.filename }}</> -->
-                                    <a href="/view/{{ file.filename }}" style="text-overflow: ellipsis; white-space: nowrap; display: inline-block; max-width: 100%; overflow: hidden;" target="_blank" rel="noopener noreferrer">{{ file.filename }}</a>
+                                    <a href="/view/{{ file.system_filename }}" style="text-overflow: ellipsis; white-space: nowrap; display: inline-block; max-width: 100%; overflow: hidden;" target="_blank" rel="noopener noreferrer">{{ file.filename }}</a>
                                     
                                 </div>
                                 <div class="col-3 d-flex align-items-center" title="{{ file.upload_date }}">
@@ -53,12 +53,21 @@
                                 </div>
                                 <div class="col-2 d-flex p-0 align-items-center">
     
-                                    <a href="/download/{{ file.filename }}" type="button" class="btn"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16">
-                                        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
-                                        <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
-                                      </svg></a>
-                                    <!-- <button class="btn btn-outline-success m-1"> Donwload</button> -->
-                                     <!-- <button type="button">test</button> -->
+
+
+                                      <div class="dropdown">
+                                        <button class="btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-three-dots-vertical" viewBox="0 0 16 16">
+                                                <path d="M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0m0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0m0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"/>
+                                            </svg>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item text-success" href="/download/{{ file.system_filename }}">Download</a></li>
+                                            <li><button class="dropdown-item text-danger" onclick="deleteFile('{{ file.system_filename }}')" >Delete</button></li>
+                                          
+                                        </ul>
+                                      </div>
+
                                 </div>
                             </div>
                         </div>
@@ -175,6 +184,25 @@
             xhr.send(formData);
             
         });
+
+        function deleteFile(system_filename) {
+            console.log(system_filename)
+            //fetch(`/delete-file/${system_filename}`)
+
+            fetch(`/delete-file/${system_filename}`)
+                .then(response => {
+                    console.log(response);
+                    if (response.status == 200) {
+                        location.reload();
+                    }
+                    return response.json();
+                }) // Преобразуем в JSON
+                .then(data => {
+                    console.log(data);
+
+                }) // Выводим в консоль
+                .catch(error => console.error("Ошибка:", error));
+            }
         
     </script>
 </html>

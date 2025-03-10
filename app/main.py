@@ -306,23 +306,25 @@ async def upload(request: Request, file: UploadFile = File(), tg_send: bool = Fo
         return "User not authnticated"
     
 
-@app.get("/download/{filename}")
-async def download_file(filename: str):
-    print(filename)
-    file = files_table.find_one({"filename": filename})
+@app.get("/download/{system_filename}")
+async def download_file(system_filename: str):
+    print(system_filename)
+    file = files_table.find_one({"system_filename": system_filename})
     # file_path = file["filepath"]
     if file:
+
+        
         return FileResponse(file["filepath"], media_type="application/octet-stream", filename=file["filename"])
     return {"error": "Файл не найден"}
 
-@app.get("/view/{filename}")
-async def view_file(filename: str):
-    print(filename)
+@app.get("/view/{system_filename}")
+async def view_file(system_filename: str):
+    print(system_filename)
     # filename = urllib.parse.unquote(filename)  # Декодируем %20 в пробелы
-    file = files_table.find_one({"filename": filename})
+    file = files_table.find_one({"system_filename": system_filename})
     
     if file:
-        encoded_filename = urllib.parse.quote(file["filename"])
+        encoded_filename = urllib.parse.quote(file["system_filename"])
         return FileResponse(
             file["filepath"],
             media_type=file["content_type"],  # Укажи нужный MIME-тип
@@ -523,4 +525,33 @@ async def qr_validate(request: Request):
     else:
 
         return RedirectResponse(f"/", status_code=302)
+
+@app.get("/delete-file/{system_filename}")
+async def delete_file(request: Request, system_filename: str):
+
+    token = request.cookies.get("access_token")
     
+    
+    if auth(token):
+        site_username = extract(token).get("siteUsername")
+        
+        file = files_table.find_one({"system_filename": system_filename, "owner": site_username})
+        # file = files_table.find_one({"system_filename": system_filename})
+
+        if file:
+            path = Path(file["filepath"])
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                return JSONResponse(content={"data": "File does not exist"}, status_code = 500)    
+
+            files_table.delete_one({"_id": file["_id"]})
+
+            return JSONResponse(content={"data": "File successfuly deleted"}, status_code = 200)
+        else:
+            return JSONResponse(content={"data": "File not found"}, status_code = 404)
+
+
+
+    return RedirectResponse(f"/", status_code=302)
+
